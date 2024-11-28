@@ -18,6 +18,10 @@ Este projeto é composto por dois programas principais:
 - **Biblioteca de Sockets**: BSD sockets
 - **Byte Stuffing**: Técnica usada para evitar confusão com sequências especiais, como o comando de **"bye"** [TO BE IMPLEMENTED].
 
+## 🧑‍💻 **Requisitos de Execução**
+
+- **Compilador**: Para executar o projeto, é necessário ter o **GNU Compiler Collection (GCC)** instalado em seu sistema. A versão mínima requerida é **GCC 7.1.0**, sendo a recomendada a versão **GCC 13.2.0**.
+
 ## 💡 **Funcionamento do Sistema**
 
 ### 1. **Cliente**

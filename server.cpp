@@ -5,8 +5,12 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 #include <netdb.h>
 #include <cmath>
+#include <algorithm>
+#include <filesystem>
 
 using namespace std;
 
@@ -42,7 +46,81 @@ string getLocalIPAddress() {
     return string(ipstr);
 }
 
-int main() {
+string getLocalIP() {
+    const char* google_dns_server = "8.8.8.8";
+    int dns_port = 53;
+
+    struct sockaddr_in serv;
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+    //Socket could not be created
+    if(sock < 0)
+    {
+        std::cout << "Socket error" << std::endl;
+    }
+
+    memset(&serv, 0, sizeof(serv));
+    serv.sin_family = AF_INET;
+    serv.sin_addr.s_addr = inet_addr(google_dns_server);
+    serv.sin_port = htons(dns_port);
+
+    int err = connect(sock, (const struct sockaddr*)&serv, sizeof(serv));
+    if (err < 0)
+    {
+        std::cout << "Error number: " << errno
+            << ". Error message: " << strerror(errno) << std::endl;
+    }
+
+    struct sockaddr_in name;
+    socklen_t namelen = sizeof(name);
+    err = getsockname(sock, (struct sockaddr*)&name, &namelen);
+
+    char buffer[80];
+    const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, 80);
+    if(p != NULL)
+    {
+        std::cout << "Local IP address is: " << buffer << std::endl;
+        return buffer;
+    }
+    else
+    {
+        std::cout << "Error number: " << errno
+            << ". Error message: " << strerror(errno) << std::endl;
+    }
+
+    close(sock);
+    return 0;
+}
+
+string sanitize_directory_name(const string& dir_name) {
+    string sanitized = dir_name;
+
+    // Removing relative prefixes like "./"
+    if (sanitized.find("./") == 0) {
+        sanitized = sanitized.substr(2); // Removes it
+    }
+
+    // Removing relative prefixes like "../"
+    while (sanitized.find("../") == 0) {
+        sanitized = sanitized.substr(3); // Removes it
+    }
+
+    // Replacing slashes with underscores
+    replace(sanitized.begin(), sanitized.end(), '/', '_');
+
+    return sanitized;
+}
+
+int main(int argc, char* argv[]) {
+    // Checking if the correct number of arguments was provided
+    if (argc != 2) {
+        cerr << "Usage: " << argv[0] << " <server_port>" << endl;
+        return 1;
+    }
+
+    // Converting command line arguments
+    int server_port = stoi(argv[1]);
+
     int buffer_size = pow(2, 16);
     int server_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (server_fd == -1) {
@@ -53,7 +131,8 @@ int main() {
     sockaddr_in6 address{};
     address.sin6_family = AF_INET6;
     address.sin6_addr = in6addr_any;
-    address.sin6_port = htons(8080);
+    address.sin6_port = htons(server_port);
+    string server_host = getLocalIP();
 
     if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("Bind failed");
@@ -64,8 +143,8 @@ int main() {
         perror("Failed to listen");
         return 1;
     }
-
-    cout << "Server listening on port 8080..." << endl;
+    
+    cout << "Server listening on IP: " << server_host << " at port " << server_port << endl;
 
     int client_fd = accept(server_fd, nullptr, nullptr);
     if (client_fd < 0) {
@@ -89,7 +168,7 @@ int main() {
 
     // Sending READY ACK to the client
     const char* ready_ack_message = "READY ACK";
-    send(client_fd, ready_ack_message, strlen(ready_ack_message), 0);
+    send(client_fd, ready_ack_message, strlen(ready_ack_message) + 1, 0);
 
     // Receiving directory name from the client
     memset(buffer, 0, sizeof(buffer)); // Limpar o buffer
@@ -102,11 +181,21 @@ int main() {
     }
 
     string dir_name(buffer);
-    cout << "Directory name received from client: " << dir_name << endl;
+    cout << "Dirty directory name received from client: " << dir_name << endl;
+
+    // Sanitizing the directory name
+    dir_name = sanitize_directory_name(dir_name);
 
     // Identifying output filename based on the server hostname and directory name
-    string server_host = getLocalIPAddress();
-    string output_filename = server_host + "_" + dir_name + ".txt";
+    string results_dir = "./results";
+    string output_filename = results_dir + "/" + server_host + "_" + dir_name + ".txt";
+
+    if (!filesystem::exists(results_dir)) {
+        if (!filesystem::create_directory(results_dir)) {
+            cerr << "Error: Failed to create /results directory." << endl;
+            return 1;
+        }
+    }
 
     ofstream output_file(output_filename, ios::out | ios::trunc);
     if (!output_file.is_open()) {
@@ -116,6 +205,7 @@ int main() {
         return 1;
     }
 
+    const char* ack_message = "ACK";
     // Receiving file names from the client and saving them to the output file
     while (true) {
         memset(buffer, 0, sizeof(buffer)); // Clearing the buffer before each read
@@ -133,6 +223,8 @@ int main() {
             cout << "Recebido: " << received_message << endl;
             output_file << received_message << endl; // Saving the file name to the output file
         }
+        // Sending ACK to the client
+        send(client_fd, ack_message, strlen(ack_message) + 1, 0);
     }
 
     output_file.close();

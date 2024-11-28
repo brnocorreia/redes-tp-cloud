@@ -72,10 +72,14 @@ int main(int argc, char* argv[]) {
     cout << "Ready message sent to the server! Waiting for response..." << endl;
 
     // Receiving "READY ACK" from the server
-    char buffer[] = {};
-    int bytes_received = recv(sock, buffer, sizeof(buffer), 0);
+    char buffer[1024] = {};
+    int bytes_received = recv(sock, buffer, sizeof(buffer) - 1, 0);
     if (bytes_received > 0) {
+        buffer[bytes_received] = '\0';
         cout << "Server response: " << buffer << endl;
+    } else {
+        cerr << "Error receiving message from server." << endl;
+        return 1;
     }
 
     // Verificar se o servidor respondeu "READY ACK"
@@ -126,6 +130,16 @@ int main(int argc, char* argv[]) {
 
                 total_bytes_sent += bytes_sent;
                 cout << "Sent file name: " << entry->d_name << " (" << bytes_sent << " bytes)" << endl;
+                cout << "Waiting for ACK from server..." << endl;
+
+                // Receiving ACK from the server
+                char ack_buffer[1024] = {};
+                int ack_bytes_received = recv(sock, ack_buffer, sizeof(ack_buffer) - 1, 0);
+                if (ack_bytes_received <= 0 || strcmp(ack_buffer, "ACK") != 0) {
+                    cerr << "Error: Server did not respond with ACK!" << endl;
+                    close(sock);
+                    return 1;
+                }
             }
         }
 

@@ -1,0 +1,6 @@
+## Ignore binaries
+client
+server
+gen_tests
+/tests
+*.txt
