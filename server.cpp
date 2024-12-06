@@ -113,15 +113,16 @@ string sanitize_directory_name(const string& dir_name) {
 
 int main(int argc, char* argv[]) {
     // Checking if the correct number of arguments was provided
-    if (argc != 2) {
-        cerr << "Usage: " << argv[0] << " <server_port>" << endl;
+    if (argc != 3) {
+        cerr << "Usage: " << argv[0] << " <server_port>" << " <i_size>" << endl;
         return 1;
     }
 
     // Converting command line arguments
     int server_port = stoi(argv[1]);
+    int i_size = stoi(argv[2]);
 
-    int buffer_size = pow(2, 16);
+    int buffer_size = pow(2, i_size);
     int server_fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (server_fd == -1) {
         perror("Socket creation failed");
@@ -156,9 +157,10 @@ int main(int argc, char* argv[]) {
 
     // Receiving message from client
     char buffer[buffer_size] = {};
+    char init_buffer[256] = {};
 
-    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-    if (bytes_received <= 0 || strcmp(buffer, "READY") != 0) {
+    int bytes_received = recv(client_fd, init_buffer, sizeof(init_buffer), 0);
+    if (bytes_received <= 0 || strcmp(init_buffer, "READY") != 0) {
         cerr << "Erro: Initial message 'READY' not received from client." << endl;
         close(client_fd);
         close(server_fd);
@@ -171,8 +173,8 @@ int main(int argc, char* argv[]) {
     send(client_fd, ready_ack_message, strlen(ready_ack_message) + 1, 0);
 
     // Receiving directory name from the client
-    memset(buffer, 0, sizeof(buffer)); // Limpar o buffer
-    bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+    memset(init_buffer, 0, sizeof(init_buffer)); // Limpar o buffer
+    bytes_received = recv(client_fd, init_buffer, sizeof(init_buffer), 0);
     if (bytes_received <= 0) {
         cerr << "Error: Error found while receiving directory name from client." << endl;
         close(client_fd);
@@ -180,7 +182,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    string dir_name(buffer);
+    string dir_name(init_buffer);
     cout << "Dirty directory name received from client: " << dir_name << endl;
 
     // Sanitizing the directory name
@@ -220,7 +222,7 @@ int main(int argc, char* argv[]) {
             cout << "Bye message received from client. Saving file and closing connection." << endl;
             break;
         } else {
-            cout << "Recebido: " << received_message << endl;
+            cout << "Received: " << received_message << endl;
             output_file << received_message << endl; // Saving the file name to the output file
         }
         // Sending ACK to the client

@@ -13,11 +13,11 @@ SERVER_PORT ?= 8080
 # Default client directory
 CLIENT_DIR ?= ./tests
 
-# Default i value for tests
-TEST_I ?= 8
+# Buffer size
+BUFFER_SIZE ?= 8
 
 # Targets
-all: client server
+all: client server tests
 
 # Client compiling
 client: client.cpp
@@ -33,19 +33,23 @@ tests: gen_tests.cpp
 
 # Client execution
 run-client: client
-	./client $(SERVER_HOST) $(SERVER_PORT) $(CLIENT_DIR)
+	./client $(SERVER_HOST) $(SERVER_PORT) $(CLIENT_DIR) $(BUFFER_SIZE)
 
 # Server execution
 run-server: server
-	./server $(SERVER_PORT)
+	./server $(SERVER_PORT) $(BUFFER_SIZE)
 
 # Tests execution
 run-tests: tests
-	./gen_tests $(TEST_I)
+	./gen_tests $(BUFFER_SIZE)
 
 # Clear binaries
 clean:
-	rm -f client server
+	rm -f client server gen_tests
+
+# Clear tests
+clean-tests:
+	rm -rf tests
 
 # Rebuild binaries
 rebuild: clean all

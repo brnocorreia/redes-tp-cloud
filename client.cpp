@@ -8,12 +8,13 @@
 #include <sys/time.h> // Time measurement
 #include <dirent.h> // List files in a directory
 #include <sys/stat.h> // Verify file type
+#include <cmath>
 
 using namespace std;
 
 int main(int argc, char* argv[]) {
-    if (argc != 4) {
-        cerr << "Usage: " << argv[0] << " <server_host> <server_port> <dir_name>" << endl;
+    if (argc != 5) {
+        cerr << "Usage: " << argv[0] << " <server_host> <server_port> <dir_name> <i_size>" << endl;
         return 1;
     }
 
@@ -21,6 +22,8 @@ int main(int argc, char* argv[]) {
     const char* server_host = argv[1];
     int server_port = stoi(argv[2]);
     const char* dir_name = argv[3];
+    int i_size = stoi(argv[4]);
+    int buffer_size = pow(2, i_size);
 
     cout << "Trying to connect to the server at " << server_host 
               << " on port " << server_port
@@ -67,23 +70,26 @@ int main(int argc, char* argv[]) {
 
     // Start time measurement
     timeval start_time{}, end_time{};
-    gettimeofday(&start_time, nullptr);
+    
 
     cout << "Ready message sent to the server! Waiting for response..." << endl;
 
+    // Initializing buffers
+    char buffer[buffer_size] = {};
+    char init_buffer[256] = {};
+
     // Receiving "READY ACK" from the server
-    char buffer[1024] = {};
-    int bytes_received = recv(sock, buffer, sizeof(buffer) - 1, 0);
+    int bytes_received = recv(sock, init_buffer, sizeof(init_buffer) - 1, 0);
     if (bytes_received > 0) {
-        buffer[bytes_received] = '\0';
-        cout << "Server response: " << buffer << endl;
+        init_buffer[bytes_received] = '\0';
+        cout << "Server response: " << init_buffer << endl;
     } else {
         cerr << "Error receiving message from server." << endl;
         return 1;
     }
 
     // Verificar se o servidor respondeu "READY ACK"
-    if (strcmp(buffer, "READY ACK") == 0) {
+    if (strcmp(init_buffer, "READY ACK") == 0) {
         cout << "Starting file transfer from: " << dir_name << endl;
 
         DIR* dir = opendir(dir_name);
@@ -96,8 +102,14 @@ int main(int argc, char* argv[]) {
         struct dirent* entry;
         int total_bytes_sent = 0;
 
+        // Cleaning buffer
+        memset(init_buffer, 0, sizeof(init_buffer));
+
+        // Loading directory name to the buffer
+        strncpy(init_buffer, dir_name, sizeof(init_buffer) - 1);
+
         // Sending directory name to the server
-        int bytes_sent = send(sock, dir_name, strlen(dir_name) + 1, 0); // Includes the '\0'
+        int bytes_sent = send(sock, init_buffer, sizeof(init_buffer), 0); // Includes the '\0'
         if (bytes_sent < 0) {
             perror("Error while sending directory name");
             closedir(dir);
@@ -105,7 +117,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        total_bytes_sent += bytes_sent;
+        gettimeofday(&start_time, nullptr);
 
         while ((entry = readdir(dir)) != nullptr) {
             // Ignoring special entries "." and ".."
@@ -119,8 +131,15 @@ int main(int argc, char* argv[]) {
             // Verifying if it is a regular file
             struct stat file_info;
             if (stat(full_path.c_str(), &file_info) == 0 && S_ISREG(file_info.st_mode)) {
+
+                // Cleaning buffer
+                memset(buffer, 0, sizeof(buffer));
+
+                // Loading file name to the buffer
+                strncpy(buffer, entry->d_name, sizeof(buffer) - 1);
+
                 // Send the file name to the server
-                int bytes_sent = send(sock, entry->d_name, strlen(entry->d_name) + 1, 0); // Includes the '\0'
+                int bytes_sent = send(sock, buffer, sizeof(buffer), 0); // Includes the '\0'
                 if (bytes_sent < 0) {
                     perror("Error while sending file name");
                     closedir(dir);

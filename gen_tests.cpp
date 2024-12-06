@@ -4,10 +4,11 @@
 #include <random>
 #include <cmath>
 #include <filesystem>
+#include <cstring>
 
 namespace fs = std::filesystem;
 
-// Função para gerar uma string aleatória com tamanho especificado
+// Function to generate a random string of a given length
 std::string generateRandomString(size_t length) {
     const std::string characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     std::random_device rd;
@@ -21,48 +22,47 @@ std::string generateRandomString(size_t length) {
     return randomString;
 }
 
-void createJsonFiles(const std::string& folder, int i) {
-    // Verifica e cria a pasta, se necessário
+void createJsonFiles(const std::string& folder, int i_size) {
+    // Verify if the folder exists, if not, create it
     if (!fs::exists(folder)) {
         fs::create_directories(folder);
-        std::cout << "Pasta criada: " << folder << "\n";
+        std::cout << "Folder created: " << folder << "\n";
     }
 
-    // Tamanho do nome do arquivo, incluindo extensão ".json"
-    size_t nameLength = std::pow(2, i);
-
-    for (int j = 0; j < 50; ++j) {
-        // Gera um nome aleatório com tamanho suficiente para totalizar `nameLength` bytes
-        std::string randomName = generateRandomString(nameLength - 5); // Subtraindo 5 por causa de ".json"
+    for (int j = 0; j < 64; ++j) {
+        // Generate a random name for the file
+        std::string randomName = generateRandomString(i_size - 6); // Subtraindo 6 por causa de ".json"
         std::string fileName = randomName + ".json";
 
-        // Caminho completo do arquivo
+        // Path to the file
         std::string filePath = folder + "/" + fileName;
 
-        // Cria o arquivo vazio
+        // Create the empty file
         std::ofstream outFile(filePath);
         if (!outFile) {
-            std::cerr << "Erro ao criar o arquivo: " << filePath << "\n";
+            std::cerr << "Error while creating file: " << filePath << "\n";
         } else {
             outFile.close();
         }
     }
 
-    std::cout << "50 arquivos criados na pasta " << folder << "\n";
+    std::cout << "Test archives created successfully! Check the -> " << folder << " folder" << "\n";
 }
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-        std::cerr << "Uso: " << argv[0] << " <valor_de_i>\n";
+        std::cerr << "Usage: " << argv[0] << "<buffer_size>" << std::endl;
         return 1;
     }
 
+    int i_size = std::stoi(argv[1]);
+    int buffer_size = std::pow(2, i_size);
+
     try {
-        int i = std::stoi(argv[1]);
         const std::string folder = "./tests";
-        createJsonFiles(folder, i);
+        createJsonFiles(folder, buffer_size);
     } catch (const std::exception& e) {
-        std::cerr << "Erro: " << e.what() << "\n";
+        std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
 
