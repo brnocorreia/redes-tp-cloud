@@ -57,6 +57,9 @@ int main(int argc, char* argv[]) {
 
     int i_size = std::stoi(argv[1]);
     int buffer_size = std::pow(2, i_size);
+    if (buffer_size >= 256) {
+        buffer_size = 255;
+    }
 
     try {
         const std::string folder = "./tests";
