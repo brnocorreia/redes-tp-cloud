@@ -71,7 +71,6 @@ int main(int argc, char* argv[]) {
     // Start time measurement
     timeval start_time{}, end_time{};
     
-
     cout << "Ready message sent to the server! Waiting for response..." << endl;
 
     // Initializing buffers

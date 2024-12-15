@@ -55,7 +55,11 @@ O servidor realiza o seguinte:
 
 O servidor salva os nomes dos arquivos em um arquivo nomeado com o formato: <server_host><dir_name>.txt
 
-### 3. **Byte Stuffing (ESC-Flag)**
+### 3. **Generate Tests**
+
+A aplicação conta com um gerador de testes, que gera 64 arquivos .json com nomes aleatórios de tamanho i bytes, valor configurável através de arg no binário executável. Os arquivos são criados na pasta ./tests.
+
+### 4. **Byte Stuffing (ESC-Flag)**
 
 Quando o nome do arquivo for **"bye"**, ele será substituído pela sequência especial **`0x7D 0x01`** (ESC + Flag). Essa técnica é aplicada para garantir que a mensagem de término da conexão não se misture com o nome de arquivos. O servidor, por sua vez, converte a sequência de volta para **"bye"**.
 
@@ -63,11 +67,32 @@ Quando o nome do arquivo for **"bye"**, ele será substituído pela sequência e
 
 ### **1. Compilação**
 
-Para compilar o cliente e o servidor, use o seguinte comando no terminal:
+Para compilar o cliente, o servidor e o gerador de testes, use o seguinte comando no terminal:
 
 ```bash
 g++ client.cpp -o client -std=c++11
 g++ server.cpp -o server -std=c++11
+g++ gen_tests.cpp -o gen_tests -std=c++11
+```
+
+ou, se preferir, use o comando Make:
+
+```bash
+make all // Caso queira compilar todos de vez
+make client
+make server
+make tests
+```
+
+**Obs.:**
+Por padrão, o Makefile usa:
+
+```make
+# Compiler
+CXX = g++
+
+# Compiler flags
+CXXFLAGS = -Wall -Wextra -std=c++17
 ```
 
 ### 2. **Execução**
@@ -75,23 +100,24 @@ g++ server.cpp -o server -std=c++11
 Para executar o servidor, use o seguinte comando no terminal:
 
 ```bash
-./server <server_port>
+./server <server_port> <buffer_size>
 ```
 
 Onde:
 
 - `server_port`: Porta do servidor.
+- `buffer_size`: Tamanho do buffer (2^i), onde i é o valor passado.
 
 Por exemplo:
 
 ```bash
-./server 8080
+./server 8080 8
 ```
 
 Para executar o cliente, use o seguinte comando no terminal:
 
 ```bash
-./client <server_host> <server_port> <dir_name>
+./client <server_host> <server_port> <dir_name> <buffer_size>
 ```
 
 Onde:
@@ -99,9 +125,43 @@ Onde:
 - `server_host`: Endereço IP ou nome do servidor (por exemplo, 192.168.1.100).
 - `server_port`: Porta do servidor.
 - `dir_name`: Diretório que contém os arquivos a serem enviados.
+- `buffer_size`: Tamanho do buffer (2^i), onde i é o valor passado.
 
 Por exemplo:
 
 ```bash
-./client 192.168.1.100 8080 /home/brnocorreia/projects/ufba/redes-tp-cloud
+./client 192.168.1.100 8080 /home/brnocorreia/projects/ufba/redes-tp-cloud 8
+```
+
+**IMPORTANTE**
+O valor do buffer size precisa ser igual em ambas as aplicações e de preferência também no gerador de testes (esse não necessariamente, já que mesmo que o nome do arquivo não contenha o valor x de bytes total, o buffer enviado ainda é 2^i.
+
+Se preferir, pode executar o comando Make:
+
+```bash
+make run-client
+make run-server
+make run-tests
+```
+
+Por padrão, o Makefile usa:
+
+```make
+# Default server hostname
+SERVER_HOST ?= localhost
+
+# Default server port
+SERVER_PORT ?= 8080
+
+# Default client directory
+CLIENT_DIR ?= ./tests
+
+# Buffer size
+BUFFER_SIZE ?= 8
+```
+
+Caso queira mudar, basta passar o valor desse modo, mudando o valor de alguma das variáveis:
+
+```bash
+make run-client BUFFER_SIZE=10
 ```
